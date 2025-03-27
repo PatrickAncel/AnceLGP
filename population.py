@@ -2,7 +2,7 @@ import random
 from program import Program
 
 class Population:
-    def __init__(self, lam, nu, mu, selection_func, mutation_func, program_mutation_rate, crossover_rate, instruction_count, register_count, output_value_count, operations, register_initializer, fitness_func, crossover_func=None, survival_selection_func=None, mu_plus_lambda=True):
+    def __init__(self, lam, nu, mu, selection_func, mutation_func, program_mutation_rate, crossover_rate, instruction_count, register_count, output_value_count, operations, register_initializer, fitness_func, crossover_func=None, survival_selection_func=None, stats_gatherer=None, mu_plus_lambda=True):
         if nu > lam:
             raise ValueError("Negative selection pressure: nu cannot exceed lambda.")
         if mu < lam:
@@ -24,6 +24,9 @@ class Population:
         self.crossover_rate = crossover_rate
         self.register_count = register_count
         self.output_value_count = output_value_count
+        if stats_gatherer == None:
+            stats_gatherer = lambda population : []
+        self.stats_gatherer = stats_gatherer
         # Initializes the population.
         self.members = [Program(instruction_count, register_count, output_value_count, operations, register_initializer) for i in range(lam)]
         self.next_members = []
@@ -114,7 +117,8 @@ class Population:
         best_program_index = min(range(self.lam), key = lambda i : fitnesses[i])
         best_program = self.members[best_program_index]
         best_fitness = fitnesses[best_program_index]
-        return (mean_fitness, best_fitness, best_program)
+        custom_stats = self.stats_gatherer(self)
+        return (mean_fitness, best_fitness, best_program, custom_stats)
     def evolve(self, generation_count, stop_at_fitness=0.0):
         '''Performs evolution until reaching the maximum number of generations of achieving the fitness threshold.'''
         generations = []
@@ -122,13 +126,15 @@ class Population:
         mins = []
         all_time_best_fitness = float("inf")
         all_time_best_program = None
+        all_custom_stats = []
         print("Beginning evolution.")
         for i in range(generation_count):
             print(F"\rCompleted {i}/{generation_count} generations. Best Fitness: {all_time_best_fitness}\t\t\t\t\t", end="")
-            (mean_fitness, best_fitness, best_program) = self._iterate()
+            (mean_fitness, best_fitness, best_program, custom_stats) = self._iterate()
             generations.append(i)
             means.append(mean_fitness)
             mins.append(best_fitness)
+            all_custom_stats.append(custom_stats)
             if best_fitness < all_time_best_fitness:
                 all_time_best_fitness = best_fitness
                 all_time_best_program = best_program
@@ -137,4 +143,4 @@ class Population:
                     break
             print(F"\rCompleted {i+1}/{generation_count} generations. Best Fitness: {all_time_best_fitness}\t\t\t\t\t", end="")
         print("\nEvolution complete.")
-        return (generations, means, mins, all_time_best_fitness, all_time_best_program)
+        return (generations, means, mins, all_time_best_fitness, all_time_best_program, all_custom_stats)
