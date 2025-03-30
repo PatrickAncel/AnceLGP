@@ -16,12 +16,19 @@ class Program:
         self.instruction_count = instruction_count
         self.register_count = register_count
         self.output_value_count = output_value_count
-    def copy(self):
+        self.parent_fitness = None
+    def copy(self, parent_fitness = None):
         new_program = Program(self.instruction_count, self.register_count, self.output_value_count)
         # Copies the instructions.
         new_program.instructions = [[x for x in instruction] for instruction in self.instructions]
         # Copies the initial register values.
         new_program.initial_values = [x for x in self.initial_values]
+        if parent_fitness == None:
+            # Copies the parent fitness.
+            new_program.parent_fitness = self.parent_fitness
+        else:
+            # Sets the specified parent fitness.
+            new_program.parent_fitness = parent_fitness
         return new_program
     def unique_name(self):
         '''Returns a string that uniquely identifies this program.'''

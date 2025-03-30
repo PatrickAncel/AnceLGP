@@ -59,10 +59,13 @@ class Population:
     def reproduce(self):
         '''Copies population members verbatim until the desired population size is achieved.'''
         random.shuffle(self.next_members)
+        for member in self.members:
+            # Stores the current fitness in the parent_fitness property.
+            member.parent_fitness = self._internal_fitness(member)
         # Until the "next" population reaches mu...
         while len(self.next_members) < self.mu:
             # Copy the existing "next" population members.
-            self.next_members += [member.copy() for member in self.next_members]
+            self.next_members += [member.copy(member.parent_fitness) for member in self.next_members]
         # If too many children have been created...
         if len(self.next_members) > self.mu:
             # ...trims the children.
