@@ -1,4 +1,5 @@
 import math
+import torch
 
 class Operation:
     def __init__(self, behavior, expression, name):
@@ -15,21 +16,36 @@ def b2f(bl):
 epsilon = 1e-300
 inf = float("inf")
 
-def overflow_protected(f):
+def overflow_protected(f, x):
     try:
-        return f()
+        return f(x)
     except OverflowError:
-        return inf
+        return x
+
+def domain_protected(f, x):
+    try:
+        return f(x)
+    except ValueError:
+        return x
+
+def overflow_protected_sigmoid(x):
+    try:
+        return 1.0 / (1.0 + math.exp(-x))
+    except OverflowError:
+        return 0.0
 
 # Arithmetic
 Addition =       Operation(lambda x, y, z, pc: (x + y, pc+1), "r{0} = r{1} + r{2}", "Addition")
 Subtraction =    Operation(lambda x, y, z, pc: (x - y, pc+1), "r{0} = r{1} - r{2}", "Subtraction")
 Multiplication = Operation(lambda x, y, z, pc: (x * y, pc+1), "r{0} = r{1} * r{2}", "Multiplication")
-Division =       Operation(lambda x, y, z, pc: (x / y if y != 0 else 0, pc+1), "r{0} = r{1} / r{2}", "Division")
-Square =         Operation(lambda x, y, z, pc: (overflow_protected(lambda : x**2), pc+1), "r{0} = r{1} ** 2", "Square")
-SquareRoot =     Operation(lambda x, y, z, pc: (math.sqrt(abs(x)), pc+1), "r{0} = sqrt(|r{1}|)", "SquareRoot")
-Exponent =       Operation(lambda x, y, z, pc: (overflow_protected(lambda : (abs(x)+epsilon) ** y), pc+1), "r{0} = (|r{1}|+epsilon) ** r{2}", "Exponent")
-Logarithm =      Operation(lambda x, y, z, pc: (math.log(abs(x)) if x != 0 else 0, pc), "r{0} = ln(|r{1}|)", "Logarithm")
+Division =       Operation(lambda x, y, z, pc: (x / y if y != 0 else y, pc+1), "r{0} = r{1} / r{2}", "Division")
+Square =         Operation(lambda x, y, z, pc: (overflow_protected(lambda w: w**2, x), pc+1), "r{0} = r{1} ** 2", "Square")
+SquareRoot =     Operation(lambda x, y, z, pc: (torch.sqrt(abs(x)) if type(x) == torch.Tensor else math.sqrt(abs(x)), pc+1), "r{0} = sqrt(|r{1}|)", "SquareRoot")
+Exponent =       Operation(lambda x, y, z, pc: (overflow_protected(lambda w: (abs(w)+epsilon) ** y, x), pc+1), "r{0} = (|r{1}|+epsilon) ** r{2}", "Exponent")
+Logarithm =      Operation(lambda x, y, z, pc: ((torch.log(abs(x)) if type(x) == torch.Tensor else math.log(abs(x))) if x != 0 else x, pc+1), "r{0} = ln(|r{1}|)", "Logarithm")
+
+Sine =    Operation(lambda x, y, z, pc: (torch.sin(x) if type(x) == torch.Tensor else (math.sin(x) if math.isfinite(x) else 0.0), pc+1), "r{0} = sin(r{1})", "Sine")
+Sigmoid = Operation(lambda x, y, z, pc: (torch.sigmoid(x) if type(x) == torch.Tensor else overflow_protected_sigmoid(x), pc+1), "r{0} = sigmoid(r{1})", "Sigmoid")
 
 # Boolean
 Conjunction =     Operation(lambda x, y, z, pc: (x and y, pc+1), "r{0} = r{1} and r{2}", "Conjunction")

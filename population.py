@@ -2,7 +2,7 @@ import random
 from program import Program
 
 class Population:
-    def __init__(self, lam, nu, mu, selection_func, mutation_func, program_mutation_rate, crossover_rate, instruction_count, register_count, output_value_count, operations, register_initializer, fitness_func, crossover_func=None, survival_selection_func=None, stats_gatherer=None, mu_plus_lambda=True):
+    def __init__(self, lam, nu, mu, selection_func, mutation_func, program_mutation_rate, crossover_rate, instruction_count, register_count, input_value_count, output_value_count, operations, register_initializer, fitness_func, crossover_func=None, survival_selection_func=None, stats_gatherer=None, mu_plus_lambda=True, always_run_fitness_func=False):
         if nu > lam:
             raise ValueError("Negative selection pressure: nu cannot exceed lambda.")
         if mu < lam:
@@ -23,16 +23,20 @@ class Population:
         self.program_mutation_rate = program_mutation_rate
         self.crossover_rate = crossover_rate
         self.register_count = register_count
+        self.input_value_count = input_value_count
         self.output_value_count = output_value_count
         if stats_gatherer == None:
             stats_gatherer = lambda population : []
         self.stats_gatherer = stats_gatherer
         # Initializes the population.
-        self.members = [Program(instruction_count, register_count, output_value_count, operations, register_initializer) for i in range(lam)]
+        self.members = [Program(instruction_count, register_count, input_value_count, output_value_count, operations, register_initializer) for i in range(lam)]
         self.next_members = []
         self._fitnesses = {}
+        self.always_run_fitness_func = always_run_fitness_func
     def _internal_fitness(self, program):
         '''Calculates the fitness of a program and stores it in the hash table, or reads its fitness from the table.'''
+        if self.always_run_fitness_func:
+            return self.fitness_func(program)
         key = program.unique_name()
         # If the fitness of the program is in the hash table...
         if key in self._fitnesses:
@@ -72,7 +76,7 @@ class Population:
             self.next_members = self.next_members[:self.mu]
     def mutate(self):
         '''Performs mutation over the entire population at the desired mutation rate.'''
-        self.next_members = [self.mutation_func(program, self.register_count) if random.random() < self.program_mutation_rate else program.copy() for program in self.next_members]
+        self.next_members = [self.mutation_func(program, self.register_count, self.input_value_count) if random.random() < self.program_mutation_rate else program.copy() for program in self.next_members]
     def crossover(self):
         '''Performs crossover over the entire population at the desired xover rate.'''
         random.shuffle(self.next_members)
